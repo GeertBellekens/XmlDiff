@@ -33,9 +33,6 @@ namespace VisualXmlDiff
         }
         public void compareFiles(string file1, string file2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
         {
-            //order xsd's
-            file1 = orderXmlNodes(file1);
-            file2 = orderXmlNodes(file2);
             // canonicalize files
             file1 = canonicalize(file1);
             file2 = canonicalize(file2);
@@ -77,16 +74,24 @@ namespace VisualXmlDiff
             //Load the original file again and the diff file.
             XmlTextReader orig = new XmlTextReader(file1);
             XmlTextReader diffGram = new XmlTextReader(diffFile);
-            dv.Load(orig,
-                diffGram);
+            dv.Load(orig,diffGram);
 
-            //Wrap the HTML file with necessary html and 
-            //body tags and prepare it before passing it to the GetHtml method.
+            //create the HTML output
+            createHtmlResult(file1, file2, resultPath, dv);
 
+            //cleanup
+            dv = null;
+            orig.Close();
+            diffGram.Close();
+            File.Delete(diffFile);
+        }
+
+        private static void createHtmlResult(string file1, string file2, string resultPath, XmlDiffView dv)
+        {
             string outputFile = resultPath + Path.DirectorySeparatorChar + new FileInfo(file1).Name + "_compare.html";
             StreamWriter sw1 = new StreamWriter(outputFile);
-
-
+            //Wrap the HTML file with necessary html and 
+            //body tags and prepare it before passing it to the GetHtml method.
             sw1.Write("<html><body><table width='100%'>");
             //Write Legend.
             sw1.Write(@"<tr><td colspan=""2"" align=""center""><b>Legend:</b> <font style=""background-color: yellow"" 
@@ -108,7 +113,7 @@ namespace VisualXmlDiff
             //This gets the differences but just has the 
             //rows and columns of an HTML table
             dv.GetHtml(sw1);
-            
+
             //Finish wrapping up the generated HTML and complete the file.
             sw1.Write("</table></body></html>");
             //HouseKeeping...close everything we dont want to lock.
@@ -119,14 +124,11 @@ namespace VisualXmlDiff
             text = text.Replace("red\" color=\"blue", "Plum\" color=\"blue");
             text = text.Replace("yellow\" color=\"blue", "LightCyan\" color=\"blue");
             File.WriteAllText(outputFile, text);
-            dv = null;
-            orig.Close();
-            diffGram.Close();
-            File.Delete(diffFile);
         }
+
         private string canonicalize(string file)
         {
-
+            file = orderXmlNodes(file);
             //create c14n instance and load in xml file
             XmlDsigC14NTransform c14n = new XmlDsigC14NTransform(false);
             var xmlDoc = new XmlDocument();
@@ -137,7 +139,7 @@ namespace VisualXmlDiff
             Stream s1 = (Stream)c14n.GetOutput(typeof(Stream));
   
             //create new xmldocument and save
-            String newFilename = file + ".canonical.xsd";
+            String newFilename = file + ".canonical";
             XmlDocument xmldoc2 = new XmlDocument();
             xmldoc2.Load(s1);
             xmldoc2.Save(newFilename);
@@ -148,7 +150,7 @@ namespace VisualXmlDiff
         {
             var xdoc = XDocument.Load(file);
             SortElementsInPlace(xdoc.Root);
-            string newFileName = file + ".ordered.xsd";
+            string newFileName = file + ".ordered";
             xdoc.Save(newFileName);
             return newFileName;
         }
