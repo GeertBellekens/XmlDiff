@@ -6,7 +6,7 @@ using System.ComponentModel;
 using System.Windows.Forms;
 using System.Xml;
 using Microsoft.XmlDiffPatch;
-using System.Windows.Forms.Html;
+
 
 namespace VisualXmlDiff
 {

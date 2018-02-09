@@ -6,7 +6,6 @@ using System.ComponentModel;
 using System.Windows.Forms;
 using System.Xml;
 using Microsoft.XmlDiffPatch;
-using System.Windows.Forms.Html;
 using System.Security.Cryptography.Xml;
 using System.Xml.Linq;
 using System.Linq;
@@ -27,6 +26,13 @@ namespace VisualXmlDiff
                 var file2 = Path.Combine(path2, file.Name);
                 if (File.Exists(file2))
                     compareFiles(file.FullName, file2, resultPath, diffOptions, compareFragments, algorithm);
+            }
+            //loop subdirectories
+            foreach (var directory in new DirectoryInfo(path1).GetDirectories())
+            {
+                var directory2 = Path.Combine(path2, directory.Name);
+                if (Directory.Exists(directory2))
+                    compareDirectories(directory.FullName, directory2, resultPath, diffOptions, compareFragments, algorithm);
             }
 
 
