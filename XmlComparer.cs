@@ -15,9 +15,10 @@ namespace VisualXmlDiff
     class XmlComparer
     {
         
-        public void compareDirectories (string path1, string path2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
+        private string currentLog;
+        public string compareDirectories (string path1, string path2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
         {
-
+            string currentLog = string.Empty;
 
             //loop files in the directory1
             foreach (var file in new DirectoryInfo(path1).GetFiles("*.xsd"))
@@ -26,6 +27,18 @@ namespace VisualXmlDiff
                 var file2 = Path.Combine(path2, file.Name);
                 if (File.Exists(file2))
                     compareFiles(file.FullName, file2, resultPath, diffOptions, compareFragments, algorithm);
+                else
+                {
+                    log(resultPath, string.Format("Compared file missing for: '{0}'", file2), true);
+                }
+            }
+            //loop files in directory2 to figure out if they exist in directory1
+            foreach (var file in new DirectoryInfo(path2).GetFiles("*.xsd"))
+            {
+                //find corresponding file in first directory and report error if not found
+                var file2 = Path.Combine(path1, file.Name);
+                if (!File.Exists(file2))
+                    log(resultPath, string.Format("Original file missing for: '{0}'", file2), true);
             }
             //loop subdirectories
             foreach (var directory in new DirectoryInfo(path1).GetDirectories())
@@ -34,11 +47,33 @@ namespace VisualXmlDiff
                 if (Directory.Exists(directory2))
                     compareDirectories(directory.FullName, directory2, resultPath, diffOptions, compareFragments, algorithm);
             }
+            //return the log
+            return currentLog;
+        }
+        public event EventHandler onLogProgress;
+        private void log(string logFilePath, string message, bool toFile)
+        {
+            var e = new EventArgs();
+            var sender = message;
+            onLogProgress(sender, e);
 
+            this.currentLog += message + Environment.NewLine;
+            string logFileName = logFilePath + @"\XSDCompare.log";
+            try
+            {
+                System.IO.StreamWriter logfile = new System.IO.StreamWriter(logFileName, true);
+                logfile.WriteLine(System.DateTime.Now.ToString("dd-MM-yyyy hh:mm:ss.fff") + ": " + message);
+                logfile.Close();
+            }
+            catch (Exception)
+            {
 
+                // do nothing. If the logging fails we don't want to log anything to avoid eternal loops
+            }
         }
         public void compareFiles(string file1, string file2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
         {
+            
             // canonicalize files
             file1 = canonicalize(file1);
             file2 = canonicalize(file2);
@@ -68,11 +103,17 @@ namespace VisualXmlDiff
                 tw.Close();
             }
 
+           
+
             if (isEqual)
             {
                 //This means the files were identical for given options.
                 return; //dont need to show the differences.
+                //log result
+                this.log(resultPath, string.Format("Difference found for: '{0}'", file1), false);
             }
+            //log result
+            this.log(resultPath, string.Format("Files are equal for: '{0}'", file1), false);
 
             //Files were not equal, so construct XmlDiffView.
             XmlDiffView dv = new XmlDiffView();
