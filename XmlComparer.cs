@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Drawing;
-using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows.Forms;
 using System.Xml;
@@ -14,22 +14,37 @@ namespace VisualXmlDiff
 {
     class XmlComparer
     {
-        
+
         private string currentLog;
-        public string compareDirectories (string path1, string path2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
+        public string doCompare(string path1, string path2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
+        {
+            //compare
+            var results = compareDirectories( path1,  path2,  resultPath,  diffOptions,  compareFragments,  algorithm);
+            //create the results overview
+            return createResultsOverview(resultPath, results);
+        }
+        private List<CompareResult> compareDirectories(string path1, string path2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
         {
             string currentLog = string.Empty;
+            var results = new List<CompareResult>();
 
             //loop files in the directory1
             foreach (var file in new DirectoryInfo(path1).GetFiles("*.xsd"))
             {
+                
                 //find corresponding file in second directory
                 var file2 = Path.Combine(path2, file.Name);
                 if (File.Exists(file2))
-                    compareFiles(file.FullName, file2, resultPath, diffOptions, compareFragments, algorithm);
+                    results.Add(compareFiles(file.FullName, file2, resultPath, diffOptions, compareFragments, algorithm));
                 else
                 {
                     log(resultPath, string.Format("Compared file missing for: '{0}'", file2), true);
+                    results.Add(new CompareResult()
+                    {
+                        originalFile = file.FullName,
+                        comparedFile = file2,
+                        resultType = CompareResultType.comparedFileMissing
+                    });
                 }
             }
             //loop files in directory2 to figure out if they exist in directory1
@@ -38,17 +53,43 @@ namespace VisualXmlDiff
                 //find corresponding file in first directory and report error if not found
                 var file2 = Path.Combine(path1, file.Name);
                 if (!File.Exists(file2))
+                {
                     log(resultPath, string.Format("Original file missing for: '{0}'", file2), true);
+                    results.Add(new CompareResult()
+                    {
+                        originalFile = file2,
+                        comparedFile = file.FullName,
+                        resultType = CompareResultType.originalFileMissing
+                    });
+                }
             }
             //loop subdirectories
             foreach (var directory in new DirectoryInfo(path1).GetDirectories())
             {
                 var directory2 = Path.Combine(path2, directory.Name);
                 if (Directory.Exists(directory2))
-                    compareDirectories(directory.FullName, directory2, resultPath, diffOptions, compareFragments, algorithm);
+                    results.AddRange(compareDirectories(directory.FullName, directory2, resultPath, diffOptions, compareFragments, algorithm));
             }
-            //return the log
-            return currentLog;
+            return results;
+        }
+        private string createResultsOverview(string resultsPath, List<CompareResult> results)
+        {
+            //create a csv file with an overview of the results
+            var file = resultsPath + @"\compareOverview.csv";
+            try
+            {
+                using (var stream = File.CreateText(file))
+                {
+                    foreach (var result in results)
+                    {
+                        stream.WriteLine(result.toCsvRow());
+                    }
+                }
+            }catch(Exception e)
+            {
+                MessageBox.Show("Error writing results file!" + Environment.NewLine + e.Message);
+            }
+            return file;
         }
         public event EventHandler onLogProgress;
         private void log(string logFilePath, string message, bool toFile)
@@ -67,13 +108,12 @@ namespace VisualXmlDiff
             }
             catch (Exception)
             {
-
                 // do nothing. If the logging fails we don't want to log anything to avoid eternal loops
             }
         }
-        public void compareFiles(string file1, string file2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
+        public CompareResult compareFiles(string file1, string file2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
         {
-            
+
             // canonicalize files
             file1 = canonicalize(file1);
             file2 = canonicalize(file2);
@@ -102,38 +142,57 @@ namespace VisualXmlDiff
             {
                 tw.Close();
             }
-
-           
-
+            
             if (isEqual)
             {
+                //log result
+                this.log(resultPath, string.Format("Files are equal for: '{0}'", file1), false);
                 //This means the files were identical for given options.
-                return; //dont need to show the differences.
+                return new CompareResult()
+                {
+                    originalFile = file1,
+                    comparedFile = file2,
+                    resultType = CompareResultType.comparedEqual
+                };
+            }
+            else
+            {
                 //log result
                 this.log(resultPath, string.Format("Difference found for: '{0}'", file1), false);
+                var resultDetailsFile = createResultFile(file1, file2, resultPath, diffFile);
+                return new CompareResult()
+                {
+                    originalFile = file1,
+                    comparedFile = file2,
+                    resultType = CompareResultType.comparedDifferent,
+                    detailsFile = resultDetailsFile
+                };
             }
-            //log result
-            this.log(resultPath, string.Format("Files are equal for: '{0}'", file1), false);
 
+        }
+
+        private static string createResultFile(string file1, string file2, string resultPath, string diffFile)
+        {
             //Files were not equal, so construct XmlDiffView.
             XmlDiffView dv = new XmlDiffView();
 
             //Load the original file again and the diff file.
             XmlTextReader orig = new XmlTextReader(file1);
             XmlTextReader diffGram = new XmlTextReader(diffFile);
-            dv.Load(orig,diffGram);
+            dv.Load(orig, diffGram);
 
             //create the HTML output
-            createHtmlResult(file1, file2, resultPath, dv);
+            var resultDetailFile = createHtmlResult(file1, file2, resultPath, dv);
 
             //cleanup
             dv = null;
             orig.Close();
             diffGram.Close();
             File.Delete(diffFile);
+            return resultDetailFile;
         }
 
-        private static void createHtmlResult(string file1, string file2, string resultPath, XmlDiffView dv)
+        private static string createHtmlResult(string file1, string file2, string resultPath, XmlDiffView dv)
         {
             string outputFile = resultPath + Path.DirectorySeparatorChar + new FileInfo(file1).Name + "_compare.html";
             StreamWriter sw1 = new StreamWriter(outputFile);
@@ -171,6 +230,7 @@ namespace VisualXmlDiff
             text = text.Replace("red\" color=\"blue", "Plum\" color=\"blue");
             text = text.Replace("yellow\" color=\"blue", "LightCyan\" color=\"blue");
             File.WriteAllText(outputFile, text);
+            return outputFile;
         }
 
         private string canonicalize(string file)
@@ -184,7 +244,7 @@ namespace VisualXmlDiff
 
             //get canonalised stream
             Stream s1 = (Stream)c14n.GetOutput(typeof(Stream));
-  
+
             //create new xmldocument and save
             String newFilename = file + ".canonical";
             XmlDocument xmldoc2 = new XmlDocument();
@@ -204,11 +264,11 @@ namespace VisualXmlDiff
         private void SortElementsInPlace(XContainer xContainer)
         {
             var orderedElements = (from child in xContainer.Elements()
-                                    orderby child.Name.LocalName, child.Attribute("name")?.Value
-                                    select child).ToList();  // ToList matters, since we remove all of the child elements next
+                                   orderby child.Name.LocalName, child.Attribute("name")?.Value
+                                   select child).ToList();  // ToList matters, since we remove all of the child elements next
 
             xContainer.Elements().Remove();
-            xContainer.Add(orderedElements);  
+            xContainer.Add(orderedElements);
         }
     }
 }

@@ -28,6 +28,7 @@ namespace VisualXmlDiff
         private IContainer components;
         public string filename1 = string.Empty;
         public string filename2 = string.Empty;
+        private string compareOverviewFile { get; set; }
 
         XmlDiffOptions diffOptions = new XmlDiffOptions();
         bool compareFragments = false;
@@ -52,6 +53,8 @@ namespace VisualXmlDiff
         private ProgressBar progressBar;
         private Label progressLabel;
         private TextBox logTextBox;
+        private Button closeButton;
+        private Button viewDetailsButton;
         private System.Windows.Forms.MenuItem algPrecise;
 
         public VisualXmlDiff()
@@ -144,6 +147,8 @@ namespace VisualXmlDiff
             this.progressBar = new System.Windows.Forms.ProgressBar();
             this.progressLabel = new System.Windows.Forms.Label();
             this.logTextBox = new System.Windows.Forms.TextBox();
+            this.closeButton = new System.Windows.Forms.Button();
+            this.viewDetailsButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // mainMenu1
@@ -288,9 +293,9 @@ namespace VisualXmlDiff
             // compareButton
             // 
             this.compareButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.compareButton.Location = new System.Drawing.Point(346, 307);
+            this.compareButton.Location = new System.Drawing.Point(261, 311);
             this.compareButton.Name = "compareButton";
-            this.compareButton.Size = new System.Drawing.Size(73, 30);
+            this.compareButton.Size = new System.Drawing.Size(73, 23);
             this.compareButton.TabIndex = 6;
             this.compareButton.Text = "Compare";
             this.compareButton.Click += new System.EventHandler(this.Compare_Click);
@@ -383,11 +388,36 @@ namespace VisualXmlDiff
             this.logTextBox.Size = new System.Drawing.Size(411, 170);
             this.logTextBox.TabIndex = 14;
             // 
+            // closeButton
+            // 
+            this.closeButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.closeButton.Location = new System.Drawing.Point(340, 311);
+            this.closeButton.Name = "closeButton";
+            this.closeButton.Size = new System.Drawing.Size(75, 23);
+            this.closeButton.TabIndex = 15;
+            this.closeButton.Text = "Close";
+            this.closeButton.UseVisualStyleBackColor = true;
+            this.closeButton.Click += new System.EventHandler(this.closeButton_Click);
+            // 
+            // viewDetailsButton
+            // 
+            this.viewDetailsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.viewDetailsButton.Enabled = false;
+            this.viewDetailsButton.Location = new System.Drawing.Point(180, 311);
+            this.viewDetailsButton.Name = "viewDetailsButton";
+            this.viewDetailsButton.Size = new System.Drawing.Size(75, 23);
+            this.viewDetailsButton.TabIndex = 16;
+            this.viewDetailsButton.Text = "Details";
+            this.viewDetailsButton.UseVisualStyleBackColor = true;
+            this.viewDetailsButton.Click += new System.EventHandler(this.viewDetailsButton_Click);
+            // 
             // VisualXmlDiff
             // 
             this.AcceptButton = this.compareButton;
             this.AutoScaleBaseSize = new System.Drawing.Size(5, 13);
             this.ClientSize = new System.Drawing.Size(427, 341);
+            this.Controls.Add(this.viewDetailsButton);
+            this.Controls.Add(this.closeButton);
             this.Controls.Add(this.logTextBox);
             this.Controls.Add(this.progressLabel);
             this.Controls.Add(this.progressBar);
@@ -400,7 +430,7 @@ namespace VisualXmlDiff
             this.Controls.Add(this.button1);
             this.Menu = this.mainMenu1;
             this.Name = "VisualXmlDiff";
-            this.Text = "XmlDiff";
+            this.Text = "XSD Comparer";
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -481,9 +511,9 @@ namespace VisualXmlDiff
             this.progressBar.Value = progressBar.Minimum;
             this.logTextBox.Clear();
             //compare the directories
-            DoCompare(originalDirectoryTextBox.Text, compareDirectoryTextBox.Text, resultsPathTextBox.Text);
-            //set progress label
-            this.progressLabel.Text = "Finished";
+            this.compareOverviewFile = DoCompare(originalDirectoryTextBox.Text, compareDirectoryTextBox.Text, resultsPathTextBox.Text);
+            this.logTextBox.AppendText("Finished!");
+            this.viewDetailsButton.Enabled = File.Exists(compareOverviewFile);
             //set progressbar at maximum
             this.progressBar.Value = this.progressBar.Maximum;
             Cursor.Current = Cursors.Default;
@@ -494,7 +524,7 @@ namespace VisualXmlDiff
             SetDiffOptions();
             var comparer = new XmlComparer();
             comparer.onLogProgress += new EventHandler(this.onLogProgress);
-            return comparer.compareDirectories(folder1, folder2, resultsPath, diffOptions, compareFragments, algorithm);
+            return comparer.doCompare(folder1, folder2, resultsPath, diffOptions, compareFragments, algorithm);
         }
 
         private void onLogProgress(object sender, EventArgs e)
@@ -578,6 +608,16 @@ namespace VisualXmlDiff
             var ofd1 = new FolderBrowserDialog();
             ofd1.ShowDialog();
             resultsPathTextBox.Text = ofd1.SelectedPath;
+        }
+
+        private void closeButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void viewDetailsButton_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start( this.compareOverviewFile);
         }
     }
 }
