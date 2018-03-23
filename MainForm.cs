@@ -236,6 +236,7 @@ namespace VisualXmlDiff
             // 
             // ipOpt
             // 
+            this.ipOpt.Checked = true;
             this.ipOpt.Index = 7;
             this.ipOpt.Text = "Ignore Prefixes";
             this.ipOpt.Click += new System.EventHandler(this.diffOptions_Click);
