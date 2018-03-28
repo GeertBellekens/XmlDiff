@@ -235,7 +235,7 @@ namespace VisualXmlDiff
 
         private string canonicalize(string file)
         {
-            file = orderXmlNodes(file);
+            file = orderAndformat(file);
             //create c14n instance and load in xml file
             XmlDsigC14NTransform c14n = new XmlDsigC14NTransform(false);
             var xmlDoc = new XmlDocument();
@@ -253,13 +253,23 @@ namespace VisualXmlDiff
 
             return newFilename;
         }
-        private string orderXmlNodes(string file)
+        private string orderAndformat(string file)
         {
             var xdoc = XDocument.Load(file);
+            //remove any empty nodes
+            removeEmptyNodes(xdoc);
+            //sort the elements
             SortElementsInPlace(xdoc.Root);
             string newFileName = file + ".ordered";
             xdoc.Save(newFileName);
             return newFileName;
+        }
+        private void removeEmptyNodes(XDocument xdoc)
+        {
+            xdoc.Descendants()
+                    .Where(x => (x.IsEmpty || String.IsNullOrWhiteSpace(x.Value))
+                                && ! x.HasAttributes)
+                    .Remove();
         }
         private void SortElementsInPlace(XContainer xContainer)
         {
