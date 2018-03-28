@@ -268,7 +268,7 @@ namespace VisualXmlDiff
         {
             xdoc.Descendants()
                     .Where(x => (x.IsEmpty || String.IsNullOrWhiteSpace(x.Value))
-                                && ! x.HasAttributes)
+                                && !x.HasAttributes && !x.HasElements)
                     .Remove();
         }
         private void SortElementsInPlace(XContainer xContainer)
