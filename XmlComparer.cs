@@ -259,7 +259,7 @@ namespace VisualXmlDiff
             //remove any empty nodes
             removeEmptyNodes(xdoc);
             //sort the elements
-            SortElementsInPlace(xdoc.Root);
+            this.SortElementsInPlace(xdoc.Root);
             string newFileName = file + ".ordered";
             xdoc.Save(newFileName);
             return newFileName;
@@ -271,7 +271,7 @@ namespace VisualXmlDiff
                                 && !x.HasAttributes && !x.HasElements)
                     .Remove();
         }
-        private void SortElementsInPlace(XContainer xContainer)
+        public void SortElementsInPlace(XContainer xContainer)
         {
             var orderedElements = (from child in xContainer.Elements()
                                    orderby child.Name.LocalName, child.Attribute("name")?.Value

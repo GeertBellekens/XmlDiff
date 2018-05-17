@@ -55,6 +55,8 @@ namespace VisualXmlDiff
         private TextBox logTextBox;
         private Button closeButton;
         private Button viewDetailsButton;
+        private MenuItem toolsMenu;
+        private MenuItem orderAlphabeticallyMenuItem;
         private System.Windows.Forms.MenuItem algPrecise;
 
         public VisualXmlDiff()
@@ -135,6 +137,8 @@ namespace VisualXmlDiff
             this.algAuto = new System.Windows.Forms.MenuItem();
             this.algPrecise = new System.Windows.Forms.MenuItem();
             this.algFast = new System.Windows.Forms.MenuItem();
+            this.toolsMenu = new System.Windows.Forms.MenuItem();
+            this.orderAlphabeticallyMenuItem = new System.Windows.Forms.MenuItem();
             this.menuItem1 = new System.Windows.Forms.MenuItem();
             this.menuItem2 = new System.Windows.Forms.MenuItem();
             this.compareButton = new System.Windows.Forms.Button();
@@ -156,6 +160,7 @@ namespace VisualXmlDiff
             this.mainMenu1.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] {
             this.mnuFile,
             this.mnuOptions,
+            this.toolsMenu,
             this.menuItem1});
             // 
             // mnuFile
@@ -278,9 +283,22 @@ namespace VisualXmlDiff
             this.algFast.Text = "Fast";
             this.algFast.Click += new System.EventHandler(this.algOptions_Click);
             // 
+            // toolsMenu
+            // 
+            this.toolsMenu.Index = 2;
+            this.toolsMenu.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] {
+            this.orderAlphabeticallyMenuItem});
+            this.toolsMenu.Text = "Tools";
+            // 
+            // orderAlphabeticallyMenuItem
+            // 
+            this.orderAlphabeticallyMenuItem.Index = 0;
+            this.orderAlphabeticallyMenuItem.Text = "Order Alphabetically...";
+            this.orderAlphabeticallyMenuItem.Click += new System.EventHandler(this.orderAlphabeticallyMenuItem_Click);
+            // 
             // menuItem1
             // 
-            this.menuItem1.Index = 2;
+            this.menuItem1.Index = 3;
             this.menuItem1.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] {
             this.menuItem2});
             this.menuItem1.Text = "Help";
@@ -619,6 +637,11 @@ namespace VisualXmlDiff
         private void viewDetailsButton_Click(object sender, EventArgs e)
         {
             System.Diagnostics.Process.Start( this.compareOverviewFile);
+        }
+
+        private void orderAlphabeticallyMenuItem_Click(object sender, EventArgs e)
+        {
+            new OrderAlphabeticallyForm().ShowDialog();
         }
     }
 }
