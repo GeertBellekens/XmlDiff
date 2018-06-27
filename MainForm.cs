@@ -32,6 +32,7 @@ namespace VisualXmlDiff
 
         XmlDiffOptions diffOptions = new XmlDiffOptions();
         bool compareFragments = false;
+        bool ignoreRefTypeDifferences = false;
         XmlDiffAlgorithm algorithm = XmlDiffAlgorithm.Auto;
 
         public System.Windows.Forms.MenuItem icoOpt;
@@ -57,6 +58,7 @@ namespace VisualXmlDiff
         private Button viewDetailsButton;
         private MenuItem toolsMenu;
         private MenuItem orderAlphabeticallyMenuItem;
+        private MenuItem ignoreRefTypeMenuItem;
         private System.Windows.Forms.MenuItem algPrecise;
 
         public VisualXmlDiff()
@@ -153,6 +155,7 @@ namespace VisualXmlDiff
             this.logTextBox = new System.Windows.Forms.TextBox();
             this.closeButton = new System.Windows.Forms.Button();
             this.viewDetailsButton = new System.Windows.Forms.Button();
+            this.ignoreRefTypeMenuItem = new System.Windows.Forms.MenuItem();
             this.SuspendLayout();
             // 
             // mainMenu1
@@ -189,6 +192,7 @@ namespace VisualXmlDiff
             this.inOpt,
             this.ipOpt,
             this.fOpt,
+            this.ignoreRefTypeMenuItem,
             this.algOptions});
             this.mnuOptions.Text = "Diff Options";
             // 
@@ -254,7 +258,7 @@ namespace VisualXmlDiff
             // 
             // algOptions
             // 
-            this.algOptions.Index = 9;
+            this.algOptions.Index = 10;
             this.algOptions.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] {
             this.algAuto,
             this.algPrecise,
@@ -430,6 +434,12 @@ namespace VisualXmlDiff
             this.viewDetailsButton.UseVisualStyleBackColor = true;
             this.viewDetailsButton.Click += new System.EventHandler(this.viewDetailsButton_Click);
             // 
+            // ignoreRefTypeMenuItem
+            // 
+            this.ignoreRefTypeMenuItem.Index = 9;
+            this.ignoreRefTypeMenuItem.Text = "Ignore Ref/Type differences";
+            this.ignoreRefTypeMenuItem.Click += new System.EventHandler(this.diffOptions_Click);
+            // 
             // VisualXmlDiff
             // 
             this.AcceptButton = this.compareButton;
@@ -529,9 +539,16 @@ namespace VisualXmlDiff
             this.progressLabel.Text = string.Empty;
             this.progressBar.Value = progressBar.Minimum;
             this.logTextBox.Clear();
-            //compare the directories
-            this.compareOverviewFile = DoCompare(originalDirectoryTextBox.Text, compareDirectoryTextBox.Text, resultsPathTextBox.Text);
-            this.logTextBox.AppendText("Finished!");
+            try
+            {
+                //compare the directories
+                this.compareOverviewFile = DoCompare(originalDirectoryTextBox.Text, compareDirectoryTextBox.Text, resultsPathTextBox.Text);
+                this.logTextBox.AppendText("Finished!");
+            }
+            catch (Exception err)
+            {
+                this.logTextBox.AppendText(err.Message);
+            }
             this.viewDetailsButton.Enabled = File.Exists(compareOverviewFile);
             //set progressbar at maximum
             this.progressBar.Value = this.progressBar.Maximum;
@@ -543,7 +560,7 @@ namespace VisualXmlDiff
             SetDiffOptions();
             var comparer = new XmlComparer();
             comparer.onLogProgress += new EventHandler(this.onLogProgress);
-            return comparer.doCompare(folder1, folder2, resultsPath, diffOptions, compareFragments, algorithm);
+            return comparer.doCompare(folder1, folder2, resultsPath, diffOptions, compareFragments, ignoreRefTypeDifferences, algorithm);
         }
 
         private void onLogProgress(object sender, EventArgs e)
@@ -595,6 +612,8 @@ namespace VisualXmlDiff
 
             if (fOpt.Checked)
                 compareFragments = true;
+            if (ignoreRefTypeMenuItem.Checked)
+                ignoreRefTypeDifferences = true;
             //algorithm
             if (algFast.Checked) algorithm = XmlDiffAlgorithm.Fast;
             else if (algPrecise.Checked) algorithm = XmlDiffAlgorithm.Precise;
@@ -643,5 +662,6 @@ namespace VisualXmlDiff
         {
             new OrderAlphabeticallyForm().ShowDialog();
         }
+
     }
 }

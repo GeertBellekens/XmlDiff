@@ -9,6 +9,7 @@ using Microsoft.XmlDiffPatch;
 using System.Security.Cryptography.Xml;
 using System.Xml.Linq;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace VisualXmlDiff
 {
@@ -16,14 +17,14 @@ namespace VisualXmlDiff
     {
 
         private string currentLog;
-        public string doCompare(string path1, string path2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
+        public string doCompare(string path1, string path2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, bool ignoreRefTypeDifferences, XmlDiffAlgorithm algorithm)
         {
             //compare
-            var results = compareDirectories( path1,  path2,  resultPath,  diffOptions,  compareFragments,  algorithm);
+            var results = compareDirectories( path1,  path2,  resultPath,  diffOptions,  compareFragments,ignoreRefTypeDifferences, algorithm);
             //create the results overview
             return createResultsOverview(resultPath, results);
         }
-        private List<CompareResult> compareDirectories(string path1, string path2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
+        private List<CompareResult> compareDirectories(string path1, string path2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, bool ignoreRefTypeDifferences, XmlDiffAlgorithm algorithm)
         {
             string currentLog = string.Empty;
             var results = new List<CompareResult>();
@@ -35,7 +36,7 @@ namespace VisualXmlDiff
                 //find corresponding file in second directory
                 var file2 = Path.Combine(path2, file.Name);
                 if (File.Exists(file2))
-                    results.Add(compareFiles(file.FullName, file2, resultPath, diffOptions, compareFragments, algorithm));
+                    results.Add(compareFiles(file.FullName, file2, resultPath, diffOptions, compareFragments, ignoreRefTypeDifferences, algorithm));
                 else
                 {
                     log(resultPath, string.Format("Compared file missing for: '{0}'", file2), true);
@@ -68,7 +69,7 @@ namespace VisualXmlDiff
             {
                 var directory2 = Path.Combine(path2, directory.Name);
                 if (Directory.Exists(directory2))
-                    results.AddRange(compareDirectories(directory.FullName, directory2, resultPath, diffOptions, compareFragments, algorithm));
+                    results.AddRange(compareDirectories(directory.FullName, directory2, resultPath, diffOptions, compareFragments,ignoreRefTypeDifferences, algorithm));
             }
             return results;
         }
@@ -111,12 +112,14 @@ namespace VisualXmlDiff
                 // do nothing. If the logging fails we don't want to log anything to avoid eternal loops
             }
         }
-        public CompareResult compareFiles(string file1, string file2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, XmlDiffAlgorithm algorithm)
+        public CompareResult compareFiles(string file1, string file2, string resultPath, XmlDiffOptions diffOptions, bool compareFragments, bool ignoreRefTypeDifferences, XmlDiffAlgorithm algorithm)
         {
 
             // canonicalize files
             file1 = canonicalize(file1);
+            if (ignoreRefTypeDifferences) file1 = refToType(file1);
             file2 = canonicalize(file2);
+            if (ignoreRefTypeDifferences) file2 = refToType(file2);
 
             //The main class which is used to compare two files.
             XmlDiff diff = new XmlDiff();
@@ -263,6 +266,39 @@ namespace VisualXmlDiff
             string newFileName = file + ".ordered";
             xdoc.Save(newFileName);
             return newFileName;
+        }
+        private string refToType(string file)
+        {
+            var fileContents = File.ReadAllText(file);
+            string newContents = fileContents;
+            //get the ref instances
+            var refPattern = "<xsd:element maxOccurs=\"([0-9]+|unbounded)\" minOccurs=\"([0-9]+)\" ref=\"rsm:([\\w]+)\">";
+            Regex regex = new Regex(refPattern, RegexOptions.IgnoreCase);
+            Match match = regex.Match(newContents);
+            bool found = false;
+            while (match.Success)
+            {
+                string fullMatch = match.Groups[0].Value;
+                string maxOccurs = match.Groups[1].Value;
+                string minOccurs = match.Groups[2].Value;
+                string refElementName = match.Groups[3].Value;
+                //find the ref element type
+                var refElemenType = getRefElementType(refElementName, fileContents);
+                //replace the reference with a type 
+                newContents = newContents.Replace(fullMatch, $"<xsd:element maxOccurs=\"{maxOccurs}\" minOccurs=\"{minOccurs}\" name=\"{refElementName}\" type=\"rsm:{refElemenType}\">");
+                match = match.NextMatch();
+            }
+            var newFileName = file + ".typ";
+            File.WriteAllText(newFileName, newContents);
+            return newFileName;
+        }
+        private string getRefElementType(string refElementName, string fileContents)
+        {
+            var refPattern = $"<xsd:element name=\"{refElementName}\" type=\"rsm:([\\w]+)\">";
+            Regex regex = new Regex(refPattern, RegexOptions.IgnoreCase);
+            Match match = regex.Match(fileContents);
+            if (match.Success) return match.Groups[1].Value;
+            throw new Exception($"Coud not match {refElementName} to an existing element");
         }
         private void removeEmptyNodes(XDocument xdoc)
         {
